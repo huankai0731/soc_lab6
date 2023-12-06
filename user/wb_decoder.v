@@ -78,34 +78,17 @@ module user_project_wrapper #(
     output [2:0] user_irq
 );
 
-
-
 //exmem
 wire exmem_wbs_ack_o;
 wire [31:0] exmem_wbs_dat_o;
-wire [`MPRJ_IO_PADS-1:0] exmem_io_oeb; //unuse
-wire [`MPRJ_IO_PADS-1:0] exmem_io_out; //unuse
-wire [2:0] exmem_irq; //unuse
 
 //uart
 wire uart_wbs_ack_o;
 wire [31:0] uart_wbs_dat_o;
-wire [`MPRJ_IO_PADS-1:0] uart_io_oeb;
-wire [`MPRJ_IO_PADS-1:0] uart_io_out;
-wire [2:0] uart_irq;
 
 
 assign wbs_ack_o = wbs_adr_i[31:20] == 12'h380 ? exmem_wbs_ack_o : wbs_adr_i[31:20] == 12'h300 ? uart_wbs_ack_o : 1'b0;
 assign wbs_dat_o = wbs_adr_i[31:20] == 12'h380 ? exmem_wbs_dat_o : wbs_adr_i[31:20] == 12'h300 ? uart_wbs_dat_o : 32'b0;
-
-
-//assign io_oeb = wbs_adr_i[31:20] == 12'h380 ? exmem_io_oeb : wbs_adr_i[31:20] == 12'h300 ? uart_io_oeb : 40'b0;
-//assign io_out = wbs_adr_i[31:20] == 12'h380 ? exmem_io_out : wbs_adr_i[31:20] == 12'h300 ? uart_io_out : 40'b0;
-assign io_oeb = uart_io_oeb ;
-assign io_out = uart_io_out ;
-
-
-assign user_irq = uart_irq ;
 
 /*--------------------------------------*/
 /* User project is instantiated  here   */
@@ -129,23 +112,10 @@ user_proj_example mprj (
     .wbs_adr_i(wbs_adr_i),
     .wbs_dat_i(wbs_dat_i),
     .wbs_ack_o(exmem_wbs_ack_o),
-    .wbs_dat_o(exmem_wbs_dat_o),
+    .wbs_dat_o(exmem_wbs_dat_o)
 
-    // Logic Analyzer
-
-    .la_data_in(la_data_in),
-    .la_data_out(la_data_out),
-    .la_oenb (la_oenb),
-
-    // IO Pads
-
-    .io_in (io_in),
-    .io_out(exmem_io_out),
-    .io_oeb(exmem_io_oeb),
-
-    // IRQ
-    .irq(exmem_irq)
 );
+
 
 uart uart (
 `ifdef USE_POWER_PINS
@@ -168,11 +138,11 @@ uart uart (
 
     // IO ports
     .io_in  (io_in),
-    .io_out (uart_io_out),
-    .io_oeb (uart_io_oeb),
+    .io_out (io_out),
+    .io_oeb (io_oeb),
 
     // irq
-    .user_irq (uart_irq)
+    .user_irq (user_irq)
 );
 
 endmodule	// user_project_wrapper

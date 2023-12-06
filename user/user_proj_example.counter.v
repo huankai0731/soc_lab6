@@ -13,7 +13,7 @@
 // limitations under the License.
 // SPDX-License-Identifier: Apache-2.0
 
-`default_nettype none
+`default_nettype wire
 /*
  *-------------------------------------------------------------
  *
@@ -54,39 +54,22 @@ module user_proj_example #(
     input [31:0] wbs_dat_i,
     input [31:0] wbs_adr_i,
     output wbs_ack_o,
-    output [31:0] wbs_dat_o,
+    output [31:0] wbs_dat_o
 
-    // Logic Analyzer Signals
-    input  [127:0] la_data_in,
-    output [127:0] la_data_out,
-    input  [127:0] la_oenb,
 
-    // IOs
-    input  [`MPRJ_IO_PADS-1:0] io_in,
-    output [`MPRJ_IO_PADS-1:0] io_out,
-    output [`MPRJ_IO_PADS-1:0] io_oeb,
-
-    // IRQ
-    output [2:0] irq
 );
     wire clk;
     wire rst;
-
-    wire [`MPRJ_IO_PADS-1:0] io_in;
-    wire [`MPRJ_IO_PADS-1:0] io_out;
-    wire [`MPRJ_IO_PADS-1:0] io_oeb;
-
     wire [31:0] rdata; 
     wire [31:0] wdata;
-    reg [BITS-1:0] count;
-
     wire valid;
     wire [3:0] wstrb;
-    wire [31:0] la_write;
     wire decoded;
+    wire [31:0]exmem_addr;
 
     reg ready;
     reg [BITS-17:0] delayed_count;
+
 
     // WB MI A
     assign valid = wbs_cyc_i && wbs_stb_i && decoded; 
@@ -94,23 +77,12 @@ module user_proj_example #(
     assign wbs_dat_o = rdata;
     assign wdata = wbs_dat_i;
     assign wbs_ack_o = ready;
-
-    // IO
-    assign io_out = count;
-    assign io_oeb = {(`MPRJ_IO_PADS-1){rst}};
-
-    // IRQ
-    assign irq = 3'b000;	// Unused
-
-    // LA
-    assign la_data_out = {{(127-BITS){1'b0}}, count};
-    // Assuming LA probes [63:32] are for controlling the count register  
-    assign la_write = ~la_oenb[63:32] & ~{BITS{valid}};
-    // Assuming LA probes [65:64] are for controlling the count clk & reset  
-    assign clk = (~la_oenb[64]) ? la_data_in[64]: wb_clk_i;
-    assign rst = (~la_oenb[65]) ? la_data_in[65]: wb_rst_i;
-
+    assign clk =  wb_clk_i;
+    assign rst =  wb_rst_i;
     assign decoded = wbs_adr_i[31:20] == 12'h380 ? 1'b1 : 1'b0;
+    assign exmem_addr = { {8{1'b0}}, wbs_adr_i[23:0]};
+
+
     always @(posedge clk) begin
         if (rst) begin
             ready <= 1'b0;
@@ -127,20 +99,7 @@ module user_proj_example #(
             end
         end
     end
-    
-    always @(posedge clk) begin
-    	if (rst) begin
-    	    count <= 0;
-    	end else if (count == 0) begin
-    	    if ((wbs_adr_i == 32'h38000000) && valid && (|wstrb == 1'b0)) begin
-    	        count <= count + 1;
-    	    end else begin
-    	        count <= count;
-    	    end
-    	end else begin
-    	    count <= count + 1;
-    	end
-    end
+
 
     bram user_bram (
         .CLK(clk),
@@ -148,7 +107,7 @@ module user_proj_example #(
         .EN0(valid),
         .Di0(wbs_dat_i),
         .Do0(rdata),
-        .A0(wbs_adr_i)
+        .A0(exmem_addr)
     );
 
 endmodule
